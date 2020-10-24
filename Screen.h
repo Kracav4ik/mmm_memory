@@ -7,6 +7,7 @@
 #include <map>
 
 #include "EditableText.h"
+#include "colors.h"
 
 #define ANY_ALT_PRESSED (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)
 #define ANY_CTRL_PRESSED (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)
@@ -73,6 +74,7 @@ public:
     void separator(Rect rect, bool fatLine = false, bool fatEnds = true);
     void labelsFill(const Rect& rect, const std::vector<std::wstring>& labelsList, WORD colorAttr);
     void labels(Rect rect, const std::vector<std::wstring>& labelsList, WORD colorAttr, int separator = 2);
+    void pixelMap(Rect rect, const std::vector<Color>& pixels, Color bgColor, bool doubleHeight = true);
     void flip();
 
     void setTitle(const std::wstring& title);

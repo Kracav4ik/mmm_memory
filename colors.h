@@ -2,6 +2,33 @@
 
 #include <windows.h>
 
+enum class Color : uint8_t {
+    Black,
+    DarkBlue,
+    DarkGreen,
+    DarkCyan,
+    DarkRed,
+    DarkMagenta,
+    DarkYellow,
+    Grey,
+    DarkGrey,
+    Blue,
+    Green,
+    Cyan,
+    Red,
+    Magenta,
+    Yellow,
+    White,
+};
+
+inline WORD toFg(Color c) {
+    return (WORD)c;
+}
+
+inline WORD toBg(Color c) {
+    return toFg(c) << 4;
+}
+
 namespace FG {
 enum {
     BLACK = 0,

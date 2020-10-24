@@ -197,6 +197,35 @@ void Screen::labels(Rect rect, const std::vector<std::wstring>& labelsList, WORD
     }
 }
 
+void Screen::pixelMap(Rect rect, const std::vector<Color>& pixels, Color bgColor, bool doubleHeight) {
+    COORD pos = rect.getLeftTop();
+    int pixelIdx = 0;
+    WORD bg = toBg(bgColor);
+    for (int y = 0; y < rect.h; ++y) {
+        std::vector<wchar_t> lineText(rect.w, L' ');
+        std::vector<WORD> lineAttr(rect.w, bg);
+        for (int x = 0; pixelIdx < pixels.size() && x < rect.w; ++pixelIdx, ++x) {
+            WORD pixel = toFg(pixels[pixelIdx]);
+            if (doubleHeight) {
+                lineText[x] = L'▀';
+                int bottomIdx = pixelIdx + rect.w;
+                WORD bottomPixel = bottomIdx < pixels.size() ? toBg(pixels[bottomIdx]) : bg;
+                lineAttr[x] = pixel | bottomPixel;
+            } else {
+                lineText[x] = L'█';
+                lineAttr[x] = pixel;
+            }
+        }
+        if (doubleHeight) {
+            pixelIdx += rect.w;
+        }
+        DWORD _unused;
+        WriteConsoleOutputCharacterW(nextConsole, lineText.data(), lineText.size(), pos, &_unused);
+        WriteConsoleOutputAttribute(nextConsole, lineAttr.data(), lineAttr.size(), pos, &_unused);
+        pos.Y += 1;
+    }
+}
+
 void Screen::flip() {
     std::swap(currConsole, nextConsole);
     SetConsoleActiveScreenBuffer(currConsole);

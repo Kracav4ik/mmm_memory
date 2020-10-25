@@ -19,6 +19,7 @@ struct Rect {
     SHORT h;
 
     COORD getLeftTop() const { return {x, y}; }
+    int getArea() const { return w * h; }
 
     Rect withPadX(SHORT padX) const {
         Rect copy = *this;

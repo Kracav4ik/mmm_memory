@@ -24,6 +24,8 @@ set(SOURCES
         main.cpp
         MakeDirPopup.cpp
         MakeDirPopup.h
+        MemoryViewPanel.cpp
+        MemoryViewPanel.h
         MessagePopup.cpp
         MessagePopup.h
         Popup.cpp

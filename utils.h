@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <string>
+#include <iomanip>
 
 bool isDir(const std::wstring& path);
 std::wstring getLastErrorText();
@@ -14,7 +15,14 @@ bool sameTime(const FILETIME& t1, const FILETIME& t2);
 
 std::wstring align(const std::wstring& s, int size);
 std::wstring trim(const std::wstring& s);
-std::wstring to_hex(DWORD num);
+
+template<typename T>
+std::wstring to_hex(T num) {
+    std::wstringstream s;
+    s << std::setfill(L'0') << std::setw(2*sizeof(T)) << std::hex;
+    s << num;
+    return s.str();
+}
 
 template <typename T>
 T clamp(const T& left, const T& value, const T& right) {

@@ -28,7 +28,7 @@ std::wstring getLastErrorText(DWORD lastError) {
     }
     std::wstring error(buf, messageSize);
     LocalFree(buf);
-    return trim(error);
+    return trim(error) + L"\n" + std::to_wstring(lastError);
 }
 
 std::wstring getTimeStr(const SYSTEMTIME& tl) {
@@ -71,11 +71,3 @@ std::wstring trim(const std::wstring& s) {
     }
     return s.substr(start, size);
 }
-
-std::wstring to_hex(DWORD num) {
-    std::wstringstream s;
-    s << std::setfill(L'0') << std::setw(2*sizeof(num)) << std::hex;
-    s << num;
-    return s.str();
-}
-

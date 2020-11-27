@@ -5,7 +5,7 @@
 
 static const std::wstring OK_TEXT = L" <Enter> OK ";
 
-void MessagePopup::show(std::vector<std::wstring> text) {
+void MessagePopup::show(std::vector<std::wstring> text, bool clearShadow) {
     MessagePopup& popup = get();
     popup.maxWidth = 0;
     for (const auto& line : text) {
@@ -13,6 +13,7 @@ void MessagePopup::show(std::vector<std::wstring> text) {
     }
     popup.linesCount = text.size();
     popup.lines.setLines(styledText(std::move(text), FG::WHITE | BG::DARK_RED));
+    popup.clearShadow = clearShadow;
     popup.visible = true;
 }
 
@@ -42,7 +43,11 @@ void MessagePopup::drawOn(Screen& screen) {
     Rect outer = frame.withPadding(-2, -1);
     Rect shadow(outer.moved(2, 1));
 
-    screen.paintRect(shadow, FG::DARK_GREY | BG::BLACK, false);
+    if (popup.clearShadow) {
+        screen.paintRect(shadow, FG::DARK_GREY | BG::BLACK, true, L'░');
+    } else {
+        screen.paintRect(shadow, FG::DARK_GREY | BG::BLACK, false);
+    }
     screen.paintRect(outer, FG::WHITE | BG::DARK_RED);
     screen.frame(frame);
 

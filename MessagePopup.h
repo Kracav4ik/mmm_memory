@@ -10,7 +10,7 @@ class Screen;
 
 class MessagePopup : Popup {
 public:
-    static void show(std::vector<std::wstring> text);
+    static void show(std::vector<std::wstring> text, bool clearShadow = false);
     static void registerKeys(Screen& screen);
     static void drawOn(Screen& screen);
     static bool isVisible();
@@ -22,4 +22,5 @@ private:
     Lines lines;
     int maxWidth = 0;
     int linesCount = 0;
+    bool clearShadow = false;
 };

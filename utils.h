@@ -4,6 +4,7 @@
 
 #include <string>
 #include <iomanip>
+#include <cmath>
 
 bool isDir(const std::wstring& path);
 std::wstring getLastErrorText();
@@ -27,4 +28,9 @@ std::wstring to_hex(T num) {
 template <typename T>
 T clamp(const T& left, const T& value, const T& right) {
     return std::max(left, std::min(value, right));
+}
+
+template <typename T>
+int roundI(const T& val) {
+    return (int)std::round(val);
 }

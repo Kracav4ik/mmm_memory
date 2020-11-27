@@ -67,13 +67,13 @@ void Screen::clear(WORD colorAttr) {
     paintRect({0, 0, width, height}, colorAttr);
 }
 
-void Screen::paintRect(Rect rect, WORD colorAttr, bool clearChars) {
+void Screen::paintRect(Rect rect, WORD colorAttr, bool clearChars, wchar_t fillChar) {
     DWORD _unused;
     rect = adjust(rect);
     COORD origin = rect.getLeftTop();
     for (int i = 0; i < rect.h; ++i) {
         if (clearChars) {
-            FillConsoleOutputCharacterW(nextConsole, ' ', rect.w, origin, &_unused);
+            FillConsoleOutputCharacterW(nextConsole, fillChar, rect.w, origin, &_unused);
         }
         FillConsoleOutputAttribute(nextConsole, colorAttr, rect.w, origin, &_unused);
         ++origin.Y;

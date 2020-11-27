@@ -7,9 +7,99 @@
 #include "MemoryViewPanel.h"
 #include "utils.h"
 
+#include <memory>
 #include <cstdio>
 #include <io.h>
 #include <fcntl.h>
+
+uintptr_t startAddr;
+uintptr_t addrToFree = 0;
+int protTimes = 0;
+std::vector<DWORD> prots = {PAGE_READWRITE, PAGE_READONLY};
+
+void updateRegions(std::vector<Region>& regions, const SYSTEM_INFO& info) {
+    regions.clear();
+    startAddr = (uintptr_t)info.lpMinimumApplicationAddress;
+    uintptr_t endAddr = (uintptr_t)info.lpMaximumApplicationAddress;
+    auto mid = (uintptr_t) info.lpMinimumApplicationAddress / 2 + (uintptr_t) info.lpMaximumApplicationAddress / 2 + 1;
+    MEMORY_BASIC_INFORMATION basInf;
+    while (startAddr <= endAddr) {
+        SIZE_T size = VirtualQuery((LPCVOID)startAddr, &basInf, sizeof(MEMORY_BASIC_INFORMATION));
+
+        auto string = getLastErrorText();
+//        if (size == 0) {
+//            startAddr += info.dwPageSize;
+//            totalSize -= info.dwPageSize;
+//        } else {
+        if (startAddr <= mid && startAddr + basInf.RegionSize > mid) {
+//            if (basInf.AllocationBase != nullptr) {
+//                mid = (uintptr_t)basInf.BaseAddress;
+//            }
+            MessagePopup::show({
+                to_hex((uintptr_t)addrToFree),
+                to_hex((uintptr_t)mid),
+                to_hex((uintptr_t)basInf.BaseAddress),
+                to_hex((uintptr_t)basInf.AllocationBase),
+                std::to_wstring(basInf.AllocationProtect),
+                std::to_wstring(basInf.RegionSize),
+                std::to_wstring(basInf.State),
+                std::to_wstring(basInf.Protect),
+                std::to_wstring(basInf.Type),
+            }, true);
+        }
+
+        RegionMode mode;
+        if (basInf.State == MEM_FREE) {
+            mode = RegionMode::Free;
+        } else if (basInf.State == MEM_RESERVE) {
+            mode = RegionMode::Uncommitted;
+        } else {
+            mode = getModeValue(basInf.Protect);
+        }
+        regions.push_back({startAddr, basInf.RegionSize, mode});
+
+        startAddr += basInf.RegionSize;
+//        }
+    }
+    startAddr = mid;
+}
+
+void allocateMem() {
+    addrToFree = (uintptr_t)(VirtualAlloc((LPVOID) startAddr, 32 * 1024 * 1024, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+//    addrToFree = (uintptr_t)(VirtualAlloc(nullptr, 32 * 1024 * 1024, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+    if (!addrToFree) {
+        MessagePopup::show({L"Ошибка вы деления мемов:", getLastErrorText()});
+    }
+}
+
+void freeMem() {
+    if (!addrToFree) return;
+    auto addr1 = VirtualFree((LPVOID)addrToFree, 0, MEM_DECOMMIT);
+    if (!addr1) {
+        MessagePopup::show({L"Ошибка освобождение мемов1:", getLastErrorText()});
+        return;
+    }
+    auto addr2 = VirtualFree((LPVOID)addrToFree, 0, MEM_RELEASE);
+    if (!addr2) {
+        MessagePopup::show({L"Ошибка освобождение мемов2:", getLastErrorText()});
+        return;
+    }
+    addrToFree = 0;
+}
+
+void protectMem() {
+    if (!addrToFree) return;
+    auto retVal = VirtualProtect((LPVOID)addrToFree, 32 * 1024 * 1024, prots[1-protTimes], &prots[protTimes]);
+    if (!retVal) {
+        MessagePopup::show({L"Ошибка смены прокта мемов:", getLastErrorText()});
+        return;
+    }
+    protTimes = (protTimes + 1) % 2;
+}
+
+void writeToMem() {
+    memset((void*)addrToFree, 1, 32 * 1024 * 1024);
+}
 
 void _fixwcout() {
     constexpr char cp_utf16le[] = ".1200";
@@ -83,28 +173,7 @@ int main() {
     GetSystemInfo(&info);
     GlobalMemoryStatusEx(&memstat);
 
-    MemoryViewPanel memoryPanel({30, 0, 50, 25}, (uintptr_t) info.lpMinimumApplicationAddress, (uintptr_t)info.lpMaximumApplicationAddress, info.dwPageSize);
-
-    auto startAddr = (uintptr_t)info.lpMinimumApplicationAddress;
-    SIZE_T totalSize = memstat.ullTotalVirtual;
-    MEMORY_BASIC_INFORMATION basInf;
-    while (true) {
-        SIZE_T size = VirtualQuery((LPCVOID)startAddr, &basInf, sizeof(MEMORY_BASIC_INFORMATION));
-
-        auto string = getLastErrorText();
-//        if (size == 0) {
-//            startAddr += info.dwPageSize;
-//            totalSize -= info.dwPageSize;
-//        } else {
-        startAddr += basInf.RegionSize;
-        totalSize -= basInf.RegionSize;
-        if (startAddr >= (uintptr_t) info.lpMaximumApplicationAddress) {
-            break;
-        }
-        regions.push_back({startAddr, size, (DWORD) basInf.Protect});
-//        }
-    }
-
+    MemoryViewPanel memoryPanel({42, 0, 38, 23}, (uintptr_t) info.lpMinimumApplicationAddress, (uintptr_t)info.lpMaximumApplicationAddress, info.dwPageSize);
 
     std::vector<std::wstring> rows = {
             {std::wstring(L"PageSize: ") + std::to_wstring(info.dwPageSize)},
@@ -128,18 +197,32 @@ int main() {
 
     lines.setLines(styledText(rows, FG::WHITE | BG::BLACK));
 
-    memoryPanel.setRegions(regions);
-
     // Drawing
     auto repaint = [&]() {
         s.clear(FG::GREY | BG::BLACK);
 
         memoryPanel.drawOn(s);
+        s.labelsFill({0, 24, 80, 1}, {
+                L"Alt-F1/F2 Диск",
+                L"F2 Новый",
+                L"F4 Атр.",
+                L"F5 Копир.",
+                L"F6 Перен.",
+                L"F7 Папка",
+                L"F8 Удал.",
+                L"F10 Выход",
+        }, FG::BLACK | BG::DARK_CYAN);
         s.pixelMap({10, 8, 16, 8}, pix, Color::DarkBlue);
         lines.drawOn(s, {0, 0, 30, 28});
         MessagePopup::drawOn(s);
 
         s.flip();
+    };
+
+    // Refresh memory regions
+    auto refreshRegions = [&]() {
+        updateRegions(regions, info);
+        memoryPanel.setRegions(regions);
     };
 
     // Global exit
@@ -150,6 +233,32 @@ int main() {
     // Global message popup
     MessagePopup::registerKeys(s);
 
+    s.handleKey(VK_F1, 0, [&]() {
+        allocateMem();
+    });
+
+    s.handleKey(VK_F2, 0, [&]() {
+        refreshRegions();
+    });
+
+    s.handleKey(VK_F3, 0, [&]() {
+        freeMem();
+    });
+
+    s.handleKey(VK_F4, 0, [&]() {
+        protectMem();
+    });
+
+    s.handleKey(VK_F5, 0, [&]() {
+        writeToMem();
+    });
+
+    s.handleKey(VK_LEFT, 0, [&]() {
+        memoryPanel.upCell();
+    });
+    s.handleKey(VK_RIGHT, 0, [&]() {
+        memoryPanel.downCell();
+    });
     s.handleKey(VK_UP, 0, [&]() {
         memoryPanel.upLine();
     });
@@ -176,6 +285,7 @@ int main() {
     });
 
     // Initial state
+    refreshRegions();
     repaint();
 
     // Main loop

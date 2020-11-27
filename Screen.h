@@ -67,7 +67,7 @@ public:
     ~Screen();
 
     void clear(WORD colorAttr);
-    void paintRect(Rect rect, WORD colorAttr, bool clearChars = true);
+    void paintRect(Rect rect, WORD colorAttr, bool clearChars = true, wchar_t fillChar = L' ');
     void textOut(COORD pos, const std::wstring& text);
     void textOut(COORD pos, const std::wstring& text, DWORD size);
     void boundedLine(COORD pos, SHORT w, const std::wstring& text, bool centered = false);

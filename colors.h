@@ -1,6 +1,7 @@
 #pragma once
 
 #include <windows.h>
+#include <cstdint>
 
 enum class Color : uint8_t {
     Black,

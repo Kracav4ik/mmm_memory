@@ -6,36 +6,42 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
 set(SOURCES
-        AttrChangePopup.cpp
-        AttrChangePopup.h
         colors.h
-        CopyMovePopup.cpp
-        CopyMovePopup.h
-        DiskPopup.cpp
-        DiskPopup.h
         EditableText.cpp
         EditableText.h
-        FilePanel.cpp
-        FilePanel.h
+        FPWBasePanel.cpp
+        FPWBasePanel.h
+        LeftPanel.cpp
+        LeftPanel.h
+        LegendPanel.cpp
+        LegendPanel.h
         LineEdit.cpp
         LineEdit.h
         Lines.cpp
         Lines.h
         main.cpp
-        MakeDirPopup.cpp
-        MakeDirPopup.h
+        MemAllocPanel.cpp
+        MemAllocPanel.h
+        MemFreePanel.cpp
+        MemFreePanel.h
+        MemoryRegionsList.cpp
+        MemoryRegionsList.h
         MemoryViewPanel.cpp
         MemoryViewPanel.h
+        MemProtectPanel.cpp
+        MemProtectPanel.h
+        MemWritePanel.cpp
+        MemWritePanel.h
         MessagePopup.cpp
         MessagePopup.h
         Popup.cpp
         Popup.h
-        RemoveDirPopup.cpp
-        RemoveDirPopup.h
+        regions.cpp
+        regions.h
         Screen.cpp
         Screen.h
-        MakeFilePopup.cpp
-        MakeFilePopup.h
+        SystemInfoPanel.cpp
+        SystemInfoPanel.h
         utils.cpp
         utils.h
 )

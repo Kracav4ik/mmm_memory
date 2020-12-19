@@ -7,28 +7,9 @@
 
 static const uint64_t ZOOM_STEP = 2;
 
+static const Color BACKGROUND = Color::Grey;
 static const Color MIXED_REGION = Color::DarkMagenta;
-static const Color UNKNOWN_REGION = Color::Magenta;
-
-static const std::map<RegionMode, Color> REGION_COLORS {
-        {RegionMode::PageNoAccess, Color::DarkGrey},
-        {RegionMode::PageReadonly, Color::DarkBlue},
-        {RegionMode::PageReadWrite, Color::DarkGreen},
-        {RegionMode::PageCopyOnWrite, Color::DarkCyan},
-
-        {RegionMode::PageExecuteNoAccess, Color::White},
-        {RegionMode::PageExecuteReadonly, Color::Blue},
-        {RegionMode::PageExecuteReadWrite, Color::Green},
-        {RegionMode::PageExecuteCopyOnWrite, Color::Cyan},
-
-        {RegionMode::PageGuard, Color::DarkRed},
-        {RegionMode::ForbiddenRegion, Color::Red},
-
-        {RegionMode::Free, Color::Black},
-        {RegionMode::Uncommitted, Color::DarkYellow},
-        {RegionMode::Selection, Color::Yellow},
-        {RegionMode::UnknownValue, UNKNOWN_REGION},
-};
+static const Color SELECTION_REGION = Color::Yellow;
 
 static std::wstring getCellStr(uint64_t cell) {
     static const uint64_t K = 1024;
@@ -47,34 +28,12 @@ static std::wstring getCellStr(uint64_t cell) {
     return result.str();
 }
 
-RegionMode getModeValue(DWORD mode) {
-    if (mode & PAGE_GUARD) {
-        return RegionMode::PageGuard;
-    }
-    switch (mode) {
-        case 0: return RegionMode::ForbiddenRegion;
-        case PAGE_NOACCESS: return RegionMode::PageNoAccess;
-        case PAGE_READONLY: return RegionMode::PageReadonly;
-        case PAGE_READWRITE: return RegionMode::PageReadWrite;
-        case PAGE_WRITECOPY: return RegionMode::PageCopyOnWrite;
-        case PAGE_EXECUTE: return RegionMode::PageExecuteNoAccess;
-        case PAGE_EXECUTE_READ: return RegionMode::PageExecuteReadonly;
-        case PAGE_EXECUTE_READWRITE: return RegionMode::PageExecuteReadWrite;
-        case PAGE_EXECUTE_WRITECOPY: return RegionMode::PageExecuteCopyOnWrite;
-        default: return RegionMode::UnknownValue;
-    }
-}
-
-Region selectionRegion(uint64_t offset, uint64_t size) {
-    return {offset, size, RegionMode::Selection};
-}
-
-MemoryViewPanel::MemoryViewPanel(Rect rect, uint64_t minAddr, uint64_t maxAddr, uint64_t pageSize)
+MemoryViewPanel::MemoryViewPanel(Rect rect, const SYSTEM_INFO& info)
     : rect(rect)
-    , beginAddr(minAddr)
-    , endAddr(maxAddr + 1)
-    , pageSize(pageSize)
-    , curOffset(minAddr)
+    , beginAddr((uintptr_t)info.lpMinimumApplicationAddress)
+    , endAddr((uintptr_t)info.lpMaximumApplicationAddress + 1)
+    , pageSize(info.dwPageSize)
+    , curOffset(0)
     , cellSize(pageSize)
 {
     while (zoomOut()) {
@@ -102,8 +61,8 @@ bool MemoryViewPanel::zoomOut() {
 }
 
 void MemoryViewPanel::upCell() {
-    if (curOffset < beginAddr + cellSize) {
-        curOffset = beginAddr;
+    if (curOffset < cellSize) {
+        curOffset = 0;
     } else {
         curOffset -= cellSize;
     }
@@ -116,8 +75,8 @@ void MemoryViewPanel::downCell() {
 }
 
 void MemoryViewPanel::upLine() {
-    if (curOffset < beginAddr + getLineBytes()) {
-        curOffset = beginAddr;
+    if (curOffset < getLineBytes()) {
+        curOffset = 0;
     } else {
         curOffset -= getLineBytes();
     }
@@ -142,36 +101,77 @@ void MemoryViewPanel::downPage() {
 }
 
 void MemoryViewPanel::toBegin() {
-    curOffset = beginAddr;
+    curOffset = 0;
 }
 
 void MemoryViewPanel::toEnd() {
-    uint64_t linesCount = (uint64_t)ceil((endAddr - beginAddr) / (double)getLineBytes());
+    uint64_t linesCount = (uint64_t)ceil(endAddr / (double)getLineBytes());
     uint64_t line = 0;
     if (linesCount > getLinesCount()) {
         line = linesCount - getLinesCount();
     }
-    curOffset = beginAddr + line * getLineBytes();
+    curOffset = line * getLineBytes();
+}
+
+void MemoryViewPanel::registerKeys(Screen& screen) {
+    screen.handleKey(VK_LEFT, ANY_CTRL_PRESSED, [this]() {
+        upCell();
+    });
+    screen.handleKey(VK_RIGHT, ANY_CTRL_PRESSED, [this]() {
+        downCell();
+    });
+    screen.handleKey(VK_UP, ANY_CTRL_PRESSED, [this]() {
+        upLine();
+    });
+    screen.handleKey(VK_DOWN, ANY_CTRL_PRESSED, [this]() {
+        downLine();
+    });
+    screen.handleKey(VK_PRIOR, ANY_CTRL_PRESSED, [this]() {
+        upPage();
+    });
+    screen.handleKey(VK_NEXT, ANY_CTRL_PRESSED, [this]() {
+        downPage();
+    });
+    screen.handleKey(VK_HOME, ANY_CTRL_PRESSED, [this]() {
+        toBegin();
+    });
+    screen.handleKey(VK_END, ANY_CTRL_PRESSED, [this]() {
+        toEnd();
+    });
+    screen.handleKey(VK_ADD, ANY_CTRL_PRESSED, [this]() {
+        zoomIn();
+    });
+    screen.handleKey(VK_SUBTRACT, ANY_CTRL_PRESSED, [this]() {
+        zoomOut();
+    });
 }
 
 void MemoryViewPanel::drawOn(Screen& s) {
+    updateRegions();
     s.paintRect(rect, FG::WHITE | BG::GREY);
-    s.frame(rect, false);
-    s.boundedLine(rect.moved(1, 0).getLeftTop(), rect.w - 2, getTitle(), true);
+    s.paintRect(rect.withH(1), FG::BLACK | BG::GREY);
+    s.boundedLine(rect.getLeftTop(), rect.w, L"Карта виртуальной памяти", true);
+    Rect frame = frameRect();
+    s.frame(frame, false);
+    s.labels(frame.withH(1), {getTitle()}, FG::BLACK | BG::GREY);
     Rect pixels = pixelRect();
-    s.pixelMap(pixels, getPixels(), Color::Grey);
-    s.pixelMap(pixels.moved(pixels.w, 0).withW(1), getScrollbar(), Color::Grey);
+    s.pixelMap(pixels, getPixels(), BACKGROUND);
+    s.pixelMap(pixels.moved(pixels.w, 0).withW(1), getScrollbar(), BACKGROUND);
 }
 
-void MemoryViewPanel::setRegions(const std::vector<Region>& regions) {
+void MemoryViewPanel::updateRegions() {
     regionOffsets.clear();
-    for (const auto& region : regions) {
+    for (const auto& region : getRegions(beginAddr, endAddr - 1)) {
         regionOffsets.emplace(region.offset, region);
     }
 }
 
+Rect MemoryViewPanel::frameRect() const {
+    return rect.moved(0, 1).withH(rect.h - 1);
+}
+
 Rect MemoryViewPanel::pixelRect() const {
-    return rect.withPadding(1, 1);
+    return frameRect().withPadding(1, 1);
 }
 
 int MemoryViewPanel::getPixelArea() const {
@@ -192,11 +192,23 @@ uint64_t MemoryViewPanel::getAreaBytes() const {
 
 std::wstring MemoryViewPanel::getTitle() const {
     std::wstringstream result;
-    result << std::hex << L" Смещение 0x" << curOffset << L" клетка " << getCellStr(cellSize) << L" ";
+    result << std::hex << L"Смещение 0x" << curOffset << L", клетка " << getCellStr(cellSize);
     return result.str();
 }
 
 Color MemoryViewPanel::getCellColor(uint64_t startAddress) const {
+    if (hasSelection()) {
+        if (startAddress < getSelectionOffset() + getSelectionSize() && startAddress + cellSize > getSelectionOffset()) {
+            return SELECTION_REGION;
+        }
+    }
+    if (startAddress < beginAddr) {
+        if (startAddress + cellSize <= beginAddr) {
+            return BACKGROUND;
+        } else {
+            return MIXED_REGION;
+        };
+    }
     auto beginIter = regionOffsets.lower_bound(startAddress);
     if (beginIter != regionOffsets.begin()) {
         auto prev = beginIter;
@@ -216,12 +228,9 @@ Color MemoryViewPanel::getCellColor(uint64_t startAddress) const {
         commonMode = mode;
     }
     if (commonMode) {
-        auto iter = REGION_COLORS.find(*commonMode);
-        if (iter != REGION_COLORS.end()) {
-            return iter->second;
-        }
+        return getRegionColor(*commonMode);
     }
-    return UNKNOWN_REGION;
+    return getRegionColor(RegionMode::UnknownValue);
 }
 
 std::vector<Color> MemoryViewPanel::getPixels() const {
@@ -235,9 +244,9 @@ std::vector<Color> MemoryViewPanel::getPixels() const {
 
 std::vector<Color> MemoryViewPanel::getScrollbar() const {
     int linesCount = getLinesCount();
-    std::vector<Color> result(linesCount, Color::Grey);
-    double addrDist = endAddr - beginAddr;
-    int scrollBegin = roundI(linesCount * (curOffset - beginAddr) / addrDist);
+    std::vector<Color> result(linesCount, BACKGROUND);
+    double addrDist = endAddr;
+    int scrollBegin = roundI(linesCount * curOffset / addrDist);
     int scrollSize = clamp(1, roundI(linesCount * getAreaBytes() / addrDist), (int)result.size());
     scrollBegin = std::min(scrollBegin, linesCount - scrollSize);
     for (int i = scrollBegin; i < scrollBegin + scrollSize; ++i) {

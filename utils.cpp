@@ -28,7 +28,7 @@ std::wstring getLastErrorText(DWORD lastError) {
     }
     std::wstring error(buf, messageSize);
     LocalFree(buf);
-    return trim(error) + L": " + std::to_wstring(lastError);
+    return trim(error);
 }
 
 std::wstring getTimeStr(const SYSTEMTIME& tl) {
@@ -70,4 +70,24 @@ std::wstring trim(const std::wstring& s) {
         }
     }
     return s.substr(start, size);
+}
+
+int nextIdx(int idx, const std::vector<int>& array) {
+    return (idx + 1) % (int)array.size();
+}
+
+int prevIdx(int idx, const std::vector<int>& array) {
+    return (idx + (int)array.size() - 1) % (int)array.size();
+}
+
+void toggle(bool& flag) {
+    flag = !flag;
+}
+
+std::wstring check(bool value) {
+    return value ? L"[x]" : L"[ ]";
+}
+
+std::wstring radio(bool value) {
+    return value ? L"(*)" : L"( )";
 }

@@ -89,15 +89,21 @@ public:
     EditableText& getEditable();
 
     void processEvent();
-    void appendOwner(Popup* owner);
     void handlePriorityKey(WORD virtualKey, WORD modifiers, std::function<void()> callback);
     void handleKey(WORD virtualKey, WORD modifiers, std::function<void()> callback);
     void handleKey(Popup* owner, WORD virtualKey, WORD modifiers, std::function<void()> callback);
+    void handleKey(std::function<bool()> canHandle, WORD virtualKey, WORD modifiers, std::function<void()> callback);
 
 private:
     Rect adjust(Rect rect);
     COORD adjust(COORD rect);
     static HANDLE createBuffer(SHORT width, SHORT height);
+
+    struct HandleRecord {
+        DWORD key;
+        std::function<bool()> canHandle;
+        std::function<void()> callback;
+    };
 
     SHORT width;
     SHORT height;
@@ -108,8 +114,7 @@ private:
 
     EditableText editable;
 
-    std::vector<Popup*> ownersOrder;
     std::map<DWORD, std::function<void()>> priorityHandlers;
-    std::map<Popup*, std::map<DWORD, std::function<void()>>> handlersByPopup;
+    std::vector<HandleRecord> handlersWithCheck;
     std::map<DWORD, std::function<void()>> globalHandlers;
 };

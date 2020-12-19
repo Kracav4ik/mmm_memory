@@ -284,16 +284,11 @@ void Screen::processEvent() {
         if (editable.isEnabled() && editable.consumeEvent(keyEvent)) {
             return;
         }
-        for (Popup* owner : ownersOrder) {
-            if (!owner->isPopupVisible()) {
-                continue;
+        for (const auto& record : handlersWithCheck) {
+            if (key == record.key && record.canHandle()) {
+                record.callback();
+                return;
             }
-            auto& handlers = handlersByPopup[owner];
-            auto it = handlers.find(key);
-            if (it != handlers.end()) {
-                it->second();
-            }
-            return;
         }
         globalIt = globalHandlers.find(key);
         if (globalIt != globalHandlers.end()) {
@@ -301,10 +296,6 @@ void Screen::processEvent() {
             return;
         }
     }
-}
-
-void Screen::appendOwner(Popup* owner) {
-    ownersOrder.push_back(owner);
 }
 
 void Screen::handlePriorityKey(WORD virtualKey, WORD modifiers, std::function<void()> callback) {
@@ -316,7 +307,11 @@ void Screen::handleKey(WORD virtualKey, WORD modifiers, std::function<void()> ca
 }
 
 void Screen::handleKey(Popup* owner, WORD virtualKey, WORD modifiers, std::function<void()> callback) {
-    handlersByPopup[owner].emplace(makeKey(virtualKey, fixAltCtrl(modifiers)), std::move(callback));
+    handleKey([owner]() { return owner->isPopupVisible(); }, virtualKey, modifiers, std::move(callback));
+}
+
+void Screen::handleKey(std::function<bool()> canHandle, WORD virtualKey, WORD modifiers, std::function<void()> callback) {
+    handlersWithCheck.push_back(HandleRecord{makeKey(virtualKey, fixAltCtrl(modifiers)), std::move(canHandle), std::move(callback)});
 }
 
 Rect Screen::adjust(Rect rect) {

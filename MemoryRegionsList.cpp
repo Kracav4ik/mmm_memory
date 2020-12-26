@@ -120,5 +120,5 @@ void MemoryRegionsList::drawOn(Screen& s) {
 }
 
 Rect MemoryRegionsList::linesRect() const {
-    return rect.withW(rect.w - 1).withPadding(4, 1).moved(2, 0);
+    return rect.withW(rect.w - 1).withPadding(3, 1).moved(2, 0);
 }

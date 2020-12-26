@@ -33,6 +33,10 @@ void FPWBasePanel::setVisible() {
     editable.setEnabledGetter([this]() {
         return isVisible() && !MessagePopup::isVisible() && editIsSelected();
     });
+    if (selected == 2) {
+        regionsList.updateRegions();
+        updateText();
+    }
     updateLines();
     updateSelection();
 }

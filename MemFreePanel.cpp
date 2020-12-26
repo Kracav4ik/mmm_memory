@@ -67,4 +67,10 @@ void MemFreePanel::enterPressed() {
         DWORD error = GetLastError();
         MessagePopup::show({getLastErrorText(error), L"Код ошибки " + std::to_wstring(error)}, true);
     }
+    if (selected == 2) {
+        regionsList.updateRegions();
+        updateText();
+    }
+    updateLines();
+    updateSelection();
 }
